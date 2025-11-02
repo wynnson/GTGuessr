@@ -1,3 +1,3 @@
 # GTGuessr
 
-**GTGuessr** GT Geoguessr
+GT Geoguessr yay

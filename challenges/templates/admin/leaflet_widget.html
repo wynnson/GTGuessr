@@ -1,0 +1,14 @@
+{% load static %}
+
+<div class="leaflet-widget" style="display: flex; flex-direction: column; gap: 0.5rem;">
+  <!-- The actual latitude input box -->
+  {{ widget }}
+
+  <!-- Our interactive map -->
+  <div id="map"
+       style="height: 400px;
+              margin-top: 0.5em;
+              border: 2px solid #EAAA00;
+              border-radius: 8px;">
+  </div>
+</div>

@@ -1,0 +1,75 @@
+import random
+from math import radians, sin, cos, sqrt, atan2
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from challenges.models import Challenge
+from .models import Guess
+
+@login_required
+def start_play(request):
+    # Get IDs of challenges the user already guessed
+    seen_ids = Guess.objects.filter(player=request.user).values_list("challenge_id", flat=True)
+    
+    # Pick a random active challenge they haven't seen yet
+    challenge = (
+        Challenge.objects.filter(is_active=True)
+        .exclude(id__in=seen_ids)
+        .order_by("?")
+        .first()
+    )
+
+    if challenge:
+        return redirect("gameplay.play", challenge_id=challenge.id)
+    else:
+        return render(
+            request, "gameplay/completed.html", {
+                "message": "You’ve completed all available challenges!"
+            }
+        )
+
+@login_required
+def play(request, challenge_id=None):
+    if challenge_id:
+        challenge = get_object_or_404(Challenge, id=challenge_id)
+    else:
+        challenge = Challenge.objects.filter(is_active=True).order_by("?").first()
+
+    if request.method == "POST":
+        lat_str = request.POST.get("latitude")
+        lon_str = request.POST.get("longitude")
+        if not lat_str or not lon_str:
+            return render(request, "gameplay/play.html", {
+                "challenge": challenge,
+                "error": "Click on the map first."
+            })
+        lat, lon = float(lat_str), float(lon_str)
+        guess = Guess.objects.create(
+            player=request.user,
+            challenge=challenge,
+            guess_lat=lat,
+            guess_lon=lon,
+        )
+        return redirect("gameplay.result", guess_id=guess.id)
+
+    return render(request, "gameplay/play.html", {"challenge": challenge})
+
+@login_required
+def result(request, guess_id):
+    """Show result after submitting a guess."""
+    guess = get_object_or_404(Guess, id=guess_id, player=request.user)
+    challenge = guess.challenge
+
+    # Haversine formula
+    R = 6371000
+    lat1, lon1 = map(radians, [challenge.latitude, challenge.longitude])
+    lat2, lon2 = map(radians, [guess.guess_lat, guess.guess_lon])
+    dlat, dlon = lat2 - lat1, lon2 - lon1
+    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    distance = R * c
+
+    return render(request, "gameplay/result.html", {
+        "guess": guess,
+        "challenge": challenge,
+        "distance": round(distance, 2),
+    })

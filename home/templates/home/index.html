@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+
+<div class="text-center mt-10">
+  {% if user.is_authenticated %}
+    <!-- Logged-in view -->
+    <h1 class="text-4xl text-gtgold font-bold">
+      Welcome back, {{ user.username }}!
+    </h1>
+    <p class="mt-4 text-lg text-white">
+      You’re logged in. Ready to start guessing campus locations?
+    </p>
+    <div class="mt-6">
+      <a href="{% url 'gameplay.start' %}" 
+        class="bg-gtgold text-gtblue px-4 py-2 rounded-md font-semibold hover:bg-yellow-400">
+        Start Playing
+      </a>
+    </div>
+  {% else %}
+    <!-- Not logged-in view -->
+    <h1 class="text-4xl text-gtgold font-bold">
+      Welcome to GTGuessr
+    </h1>
+    <p class="mt-4 text-lg text-white">
+      Log in or sign up to start guessing!
+    </p>
+    <div class="mt-6">
+      <a href="{% url 'accounts.login' %}" class="bg-gtgold text-gtblue px-4 py-2 rounded-md font-semibold hover:bg-yellow-400">
+        Login
+      </a>
+      <a href="{% url 'accounts.signup' %}" class="ml-3 border border-gtgold px-4 py-2 rounded-md font-semibold text-gtgold hover:bg-gtgold hover:text-gtblue">
+        Sign Up
+      </a>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}GTGuessr{% endblock %}</title>
+
+  <!-- Tailwind + Flowbite -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/flowbite@2.4.1/dist/flowbite.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            gtgold: '#EAAA00',
+            gtblue: '#00254C',
+            gtgray: '#54585A'
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-gtblue min-h-screen text-white">
+  <!-- Navigation Bar -->
+  <nav class="bg-gtgold text-gtblue font-semibold p-4 shadow-md">
+    <div class="max-w-5xl mx-auto flex justify-between items-center">
+      <!-- GTGuessr title routes home -->
+      <a href="{% url 'home.index' %}" class="text-2xl font-bold hover:text-gtgray transition-colors">
+        GTGuessr
+      </a>
+
+      <div class="space-x-4">
+        {% if user.is_authenticated %}
+          <a href="{% url 'accounts.logout' %}" class="hover:underline">Logout</a>
+        {% else %}
+          <a href="{% url 'accounts.login' %}" class="hover:underline">Login</a>
+          <a href="{% url 'accounts.signup' %}" class="hover:underline">Sign Up</a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="max-w-3xl mx-auto mt-10 p-6">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

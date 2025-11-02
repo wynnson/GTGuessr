@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Sign Up | GTGuessr{% endblock %}
+
+{% block content %}
+<section class="flex flex-col items-center justify-center px-6 py-12 mx-auto min-h-screen bg-gtblue">
+  <div class="w-full bg-white rounded-2xl shadow-lg sm:max-w-md xl:p-0">
+    <div class="p-8 space-y-6">
+      <h1 class="text-2xl font-bold text-center text-gtblue">
+        Create your GTGuessr Account
+      </h1>
+
+      <form method="POST" class="space-y-5">
+        {% csrf_token %}
+        {{ template_data.form.non_field_errors }}
+
+        {% for field in template_data.form %}
+          <div>
+            <label for="{{ field.id_for_label }}" class="block mb-1 text-sm font-semibold text-gtblue">
+              {{ field.label }}
+            </label>
+            {{ field }}
+            {% if field.errors %}
+              <p class="text-red-600 text-sm mt-1">{{ field.errors|striptags }}</p>
+            {% endif %}
+          </div>
+        {% endfor %}
+
+        <div class="flex items-start mt-4">
+          <input id="terms" type="checkbox" required
+                 class="w-4 h-4 border border-gray-300 rounded focus:ring-2 focus:ring-gtgold" />
+          <label for="terms" class="ml-2 text-sm text-gtgray">
+            I accept the <a href="#" class="font-medium text-gtgold hover:underline">Terms and Conditions</a>
+          </label>
+        </div>
+
+        <button type="submit"
+                class="w-full text-gtblue bg-gtgold hover:bg-yellow-400 focus:ring-4 focus:ring-yellow-300 font-semibold rounded-lg text-sm px-5 py-2.5 transition duration-200 shadow-sm">
+          Sign Up
+        </button>
+
+        <p class="text-center text-sm text-gtgray">
+          Already have an account?
+          <a href="{% url 'accounts.login' %}" class="font-semibold text-gtgold hover:underline">
+            Log in here
+          </a>
+        </p>
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}

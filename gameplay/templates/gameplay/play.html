@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Play Challenge{% endblock %}
+{% block content %}
+
+<div class="text-center">
+  <h2 class="text-3xl text-gtgold font-bold mb-4">Where is this?</h2>
+
+  <img src="{{ challenge.image.url }}" alt="Challenge Photo"
+       class="mx-auto rounded-lg shadow-lg max-h-96 mb-6" />
+
+  <form method="POST" action="{% url 'gameplay.play' challenge.id %}" id="guessForm">
+    {% csrf_token %}
+    <input type="hidden" name="latitude" id="latitude">
+    <input type="hidden" name="longitude" id="longitude">
+
+    <!-- Map container -->
+    <div id="map" class="w-full h-96 rounded-lg shadow-md border border-gtgold"></div>
+
+    <button type="submit"
+            class="mt-6 bg-gtgold text-gtblue px-4 py-2 rounded-md font-semibold hover:bg-yellow-400">
+      Submit Guess
+    </button>
+  </form>
+</div>
+
+<!-- Leaflet CSS + JS -->
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+  // Initialize the map
+  const map = L.map('map').setView([33.7756, -84.3963], 15); // GT campus center
+  let marker = null;
+
+  // Add free OpenStreetMap tiles
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+  }).addTo(map);
+
+  // Click-to-drop-pin
+  map.on('click', function (e) {
+    const { lat, lng } = e.latlng;
+    document.getElementById('latitude').value = lat;
+    document.getElementById('longitude').value = lng;
+
+    if (marker) {
+      map.removeLayer(marker);
+    }
+
+    marker = L.marker([lat, lng], {
+      icon: L.icon({
+        iconUrl:
+          'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-yellow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+      }),
+    })
+      .addTo(map)
+      .bindPopup(`Your Guess:<br>${lat.toFixed(5)}, ${lng.toFixed(5)}`)
+      .openPopup();
+  });
+</script>
+
+{% endblock %}

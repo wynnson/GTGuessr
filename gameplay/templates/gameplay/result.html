@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Your Guess Result{% endblock %}
+{% block content %}
+<div class="text-center">
+  <h2 class="text-3xl text-gtgold font-bold mb-4">{{ challenge.title }}</h2>
+  <p class="text-lg text-white mb-6">
+    You were <strong>{{ distance }} meters</strong> away!
+  </p>
+
+  <div id="map" class="w-full h-96 rounded-lg shadow-md border border-gtgold"></div>
+
+  <div class="mt-6">
+    <a href="{% url 'gameplay.start' %}"
+      class="bg-gtgold text-gtblue px-6 py-2 rounded-md font-semibold hover:bg-yellow-400">
+      Play Again 
+    </a>
+  </div>
+</div>
+
+<!-- Leaflet Map -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+  const actual = [{{ challenge.latitude }}, {{ challenge.longitude }}];
+  const guess = [{{ guess.guess_lat }}, {{ guess.guess_lon }}];
+
+  const map = L.map('map').setView(actual, 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+  const actualMarker = L.marker(actual).addTo(map).bindPopup("Actual Location").openPopup();
+  const guessMarker = L.marker(guess, {icon: L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-yellow.png'})})
+      .addTo(map).bindPopup("Your Guess");
+
+  const line = L.polyline([actual, guess], {color: 'red'}).addTo(map);
+  map.fitBounds(line.getBounds(), {padding: [50, 50]});
+</script>
+{% endblock %}

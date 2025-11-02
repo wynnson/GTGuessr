@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}No Challenges Yet{% endblock %}
+{% block content %}
+<div class="text-center mt-10">
+  <h1 class="text-3xl text-gtgold font-bold mb-4">No Challenges Available</h1>
+  <p class="text-lg text-white">Looks like there are no campus photos yet! Come back later or ask an admin to add some.</p>
+  <a href="{% url 'home.index' %}" class="mt-6 inline-block bg-gtgold text-gtblue px-4 py-2 rounded-md font-semibold hover:bg-yellow-400">
+    Back Home
+  </a>
+</div>
+{% endblock %}

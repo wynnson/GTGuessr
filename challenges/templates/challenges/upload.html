@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center p-6 space-y-6">
+  <h1 class="text-2xl font-bold text-gtblue">Upload a New Challenge</h1>
+
+  {% if error %}
+    <p class="text-red-600 font-semibold">{{ error }}</p>
+  {% endif %}
+
+  <form method="POST" enctype="multipart/form-data" class="w-full max-w-2xl">
+    {% csrf_token %}
+    <input type="file" name="image" accept="image/*" required class="block w-full mb-4 border p-2 rounded">
+
+    <!-- Hidden lat/lon fields -->
+    <input type="hidden" id="latitude" name="latitude" required>
+    <input type="hidden" id="longitude" name="longitude" required>
+
+    <p class="text-gray-700 mb-2">Drop a pin on the map to set the challenge location:</p>
+    <div id="map" class="w-full h-96 rounded-lg shadow"></div>
+
+    <div class="flex justify-center mt-6">
+      <button type="submit"
+        class="bg-gtgold text-gtblue font-semibold px-6 py-2 rounded-md hover:bg-yellow-400">
+        Upload Challenge
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Leaflet CSS & JS -->
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+</script>
+
+<script>
+  // Initialize map
+  const map = L.map('map').setView([33.7756, -84.3963], 15); // default GT campus center
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  let marker;
+
+  // Drop a pin on click
+  map.on('click', function (e) {
+    const { lat, lng } = e.latlng;
+    document.getElementById('latitude').value = lat;
+    document.getElementById('longitude').value = lng;
+
+    if (marker) {
+      marker.setLatLng(e.latlng);
+    } else {
+      marker = L.marker(e.latlng).addTo(map);
+    }
+  });
+</script>
+{% endblock %}

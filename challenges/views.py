@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
-from .models import Challenge, Report
+from .models import Challenge, Report, HiddenChallenge
 import os
 
 ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.heic']
@@ -43,11 +43,6 @@ def upload_image(request):
 
 @login_required
 def report_challenge(request, challenge_id):
-    """Handle a user report about a Challenge image.
-
-    Expects POST with 'reason' and optional 'details'. Redirects back to the play page with
-    a `reported=1` query param on success.
-    """
     challenge = get_object_or_404(Challenge, id=challenge_id)
 
     if request.method != "POST":
@@ -68,5 +63,11 @@ def report_challenge(request, challenge_id):
         details=details,
     )
 
-    # Redirect back to the gameplay page and indicate success
-    return redirect(f"{reverse('gameplay.play', args=[challenge.id])}?reported=1")
+    # Soft-hide the challenge for this user so they won't see it again, but it remains active
+    HiddenChallenge.objects.get_or_create(user=request.user, challenge=challenge)
+
+    # Render a short "removed" screen then move player to the next available challenge
+    return render(request, "gameplay/removed.html", {
+        "message": "This photo has been removed from your play queue. Thank you for your help.",
+        "next_url": reverse('gameplay.start'),
+    })

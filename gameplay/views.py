@@ -2,18 +2,22 @@ import random
 from math import radians, sin, cos, sqrt, atan2
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from challenges.models import Challenge
+from challenges.models import Challenge, HiddenChallenge
 from .models import Guess
 
 @login_required
 def start_play(request):
     # Get IDs of challenges the user already guessed
     seen_ids = Guess.objects.filter(player=request.user).values_list("challenge_id", flat=True)
-    
-    # Pick a random active challenge they haven't seen yet
+
+    # Get IDs of challenges hidden for this user (soft-hidden via report)
+    hidden_ids = HiddenChallenge.objects.filter(user=request.user).values_list("challenge_id", flat=True)
+
+    # Pick a random active challenge they haven't seen yet and isn't hidden for them
     challenge = (
         Challenge.objects.filter(is_active=True)
         .exclude(id__in=seen_ids)
+        .exclude(id__in=hidden_ids)
         .order_by("?")
         .first()
     )
@@ -30,9 +34,17 @@ def start_play(request):
 @login_required
 def play(request, challenge_id=None):
     if challenge_id:
+        # If a specific challenge was requested, show it even if it's hidden globally.
+        # But ensure that if the challenge is soft-hidden for this user we prevent showing it.
         challenge = get_object_or_404(Challenge, id=challenge_id)
+        # If this challenge is hidden for the current user, behave as if it doesn't exist
+        if HiddenChallenge.objects.filter(user=request.user, challenge=challenge).exists():
+            # Redirect to start which will pick a different challenge
+            return redirect('gameplay.start')
     else:
-        challenge = Challenge.objects.filter(is_active=True).order_by("?").first()
+        # Find a random active challenge not hidden for this user
+        hidden_ids = HiddenChallenge.objects.filter(user=request.user).values_list("challenge_id", flat=True)
+        challenge = Challenge.objects.filter(is_active=True).exclude(id__in=hidden_ids).order_by("?").first()
 
     if request.method == "POST":
         lat_str = request.POST.get("latitude")

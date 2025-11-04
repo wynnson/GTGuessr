@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib import admin
-from .models import Challenge
+from .models import Challenge, Report
 from .widgets import LeafletMapWidget
 
 class ChallengeAdminForm(forms.ModelForm):
@@ -24,3 +24,10 @@ class ChallengeAdminForm(forms.ModelForm):
 @admin.register(Challenge)
 class ChallengeAdmin(admin.ModelAdmin):
     form = ChallengeAdminForm
+
+
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    list_display = ("id", "challenge", "reporter", "reason", "created_at", "resolved")
+    list_filter = ("reason", "resolved")
+    search_fields = ("reporter__username", "challenge__uploader__username", "details")

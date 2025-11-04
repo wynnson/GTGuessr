@@ -23,3 +23,26 @@ def delete_challenge_image(sender, instance, **kwargs):
         image_path = instance.image.path
         if os.path.isfile(image_path):
             os.remove(image_path)
+
+
+class Report(models.Model):
+    """A report submitted by a user about a Challenge (image).
+
+    Admins can review reports and take action (e.g., deactivate the challenge or delete it).
+    """
+    REASON_CHOICES = [
+        ("inaccurate", "Inaccurate location"),
+        ("inappropriate", "Inappropriate content"),
+        ("spam", "Spam / Duplicate"),
+        ("other", "Other"),
+    ]
+
+    reporter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="reports")
+    challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE, related_name="reports")
+    reason = models.CharField(max_length=32, choices=REASON_CHOICES)
+    details = models.TextField(blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    resolved = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Report({self.get_reason_display()}) by {self.reporter.username} on Challenge {self.challenge.id}"

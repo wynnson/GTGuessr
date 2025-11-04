@@ -5,8 +5,43 @@
 <div class="text-center">
   <h2 class="text-3xl text-gtgold font-bold mb-4">Where is this?</h2>
 
-  <img src="{{ challenge.image.url }}" alt="Challenge Photo"
-       class="mx-auto rounded-lg shadow-lg max-h-96 mb-6" />
+  <div class="mx-auto mb-6 inline-block relative">
+    <img id="challengeImage" src="{{ challenge.image.url }}" alt="Challenge Photo"
+         class="rounded-lg shadow-lg max-h-96" />
+
+    <!-- Overlay report toggle button (bottom-left of the photo) -->
+    <button id="reportToggle" aria-expanded="false" aria-controls="reportPanel"
+            class="absolute bottom-2 left-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-2 shadow-lg focus:outline-none focus:ring">
+      Report
+    </button>
+  </div>
+
+  {# Small report form for logged-in users, hidden until toggle clicked #}
+  <div id="reportPanel" class="max-w-xl mx-auto mb-4 hidden">
+    {% if request.GET.reported == '1' %}
+      <div class="bg-green-500 text-white p-3 rounded mb-3">Thank you — the photo has been reported and will be reviewed by an admin.</div>
+    {% elif request.GET.reported == '0' %}
+      <div class="bg-yellow-500 text-white p-3 rounded mb-3">Please provide a reason when reporting.</div>
+    {% endif %}
+
+    {% if user.is_authenticated %}
+      <form method="POST" action="{% url 'challenges.report' challenge.id %}" class="bg-gtblue p-4 rounded">
+        {% csrf_token %}
+        <label class="block mb-1">Report this photo</label>
+        <select name="reason" required class="w-full mb-2 p-2 rounded text-black" id="reasonSelect">
+          <option value="">Select reason</option>
+          <option value="inaccurate">Inaccurate location</option>
+          <option value="inappropriate">Inappropriate content</option>
+          <option value="spam">Spam / Duplicate</option>
+          <option value="other">Other</option>
+        </select>
+        <textarea id="detailsField" name="details" rows="2" placeholder="Optional details" class="w-full mb-2 p-2 rounded text-black hidden" aria-hidden="true"></textarea>
+        <button type="submit" class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-white font-semibold">Report Photo</button>
+      </form>
+    {% else %}
+      <div class="text-sm text-gray-200">Please <a href="{% url 'accounts.login' %}" class="underline">log in</a> to report this photo.</div>
+    {% endif %}
+  </div>
 
   <form method="POST" action="{% url 'gameplay.play' challenge.id %}" id="guessForm">
     {% csrf_token %}
@@ -64,6 +99,45 @@
       .addTo(map)
       .bindPopup(`Your Guess:<br>${lat.toFixed(5)}, ${lng.toFixed(5)}`)
       .openPopup();
+  });
+</script>
+
+<script>
+  // Toggle the report panel when the overlay button is clicked
+  document.addEventListener('DOMContentLoaded', function () {
+    const toggle = document.getElementById('reportToggle');
+    const panel = document.getElementById('reportPanel');
+    if (!toggle || !panel) return;
+
+    toggle.addEventListener('click', function (e) {
+      e.preventDefault();
+      const nowHidden = panel.classList.toggle('hidden');
+      toggle.setAttribute('aria-expanded', String(!nowHidden));
+      if (!nowHidden) {
+        // reveal -> smooth scroll the panel into view
+        panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+
+    // Show the optional details textarea when any reason is selected (value is not empty)
+    const reasonSelect = document.getElementById('reasonSelect');
+    const detailsField = document.getElementById('detailsField');
+    function updateDetailsVisibility() {
+      if (!reasonSelect || !detailsField) return;
+      if (reasonSelect.value) {
+        detailsField.classList.remove('hidden');
+        detailsField.setAttribute('aria-hidden', 'false');
+      } else {
+        detailsField.classList.add('hidden');
+        detailsField.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    if (reasonSelect) {
+      reasonSelect.addEventListener('change', updateDetailsVisibility);
+      // Initial visibility (in case of browser back/forward or re-render)
+      updateDetailsVisibility();
+    }
   });
 </script>
 

@@ -21,16 +21,36 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+<!-- Mapbox token -->
+<script>
+  const MAPBOX_TOKEN = "{{ mapbox_token }}";
+</script>
+
 <script>
   const actual = [{{ challenge.latitude }}, {{ challenge.longitude }}];
   const guess = [{{ guess.guess_lat }}, {{ guess.guess_lon }}];
 
   const map = L.map('map').setView(actual, 15);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+  // Mapbox tiles
+  L.tileLayer(
+    `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`,
+    {
+      tileSize: 512,
+      zoomOffset: -1,
+      attribution: 'Mapbox | OpenStreetMap',
+      maxZoom: 19
+    }
+  ).addTo(map);
 
   const actualMarker = L.marker(actual).addTo(map).bindPopup("Actual Location").openPopup();
-  const guessMarker = L.marker(guess, {icon: L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-yellow.png'})})
-      .addTo(map).bindPopup("Your Guess");
+  const guessMarker = L.marker(guess, {
+        icon: L.icon({
+            iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-yellow.png'
+        })
+      })
+      .addTo(map)
+      .bindPopup("Your Guess");
 
   const line = L.polyline([actual, guess], {color: 'red'}).addTo(map);
   map.fitBounds(line.getBounds(), {padding: [50, 50]});

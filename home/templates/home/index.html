@@ -99,6 +99,11 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
+<!-- Mapbox token -->
+<script>
+  const MAPBOX_TOKEN = "{{ mapbox_token }}";
+</script>
+
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   const modal = document.getElementById("uploadModal");
@@ -112,11 +117,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Initialize map only once
     if (!window.uploadMapInitialized) {
-      const map = L.map('map').setView([33.7766, -84.3963], 16); // GT campus default
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19
-      }).addTo(map);
+      const map = L.map('map').setView([33.7766, -84.3963], 16);
+
+      // Mapbox tiles
+      L.tileLayer(
+        `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`,
+        {
+          tileSize: 512,
+          zoomOffset: -1,
+          attribution: 'Mapbox | OpenStreetMap',
+          maxZoom: 19
+        }
+      ).addTo(map);
+
       let marker;
+
       map.on('click', e => {
         if (marker) map.removeLayer(marker);
         marker = L.marker(e.latlng).addTo(map);
@@ -124,31 +139,28 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('longitude').value = e.latlng.lng;
       });
 
-      // Watch for manual input changes in latitude and longitude
-const latInput = document.getElementById("latitude");
-const lonInput = document.getElementById("longitude");
+      const latInput = document.getElementById("latitude");
+      const lonInput = document.getElementById("longitude");
 
-function updateMarkerFromInputs() {
-  const lat = parseFloat(latInput.value);
-  const lon = parseFloat(lonInput.value);
+      function updateMarkerFromInputs() {
+        const lat = parseFloat(latInput.value);
+        const lon = parseFloat(lonInput.value);
 
-  // Only update if valid coordinates
-  if (!isNaN(lat) && !isNaN(lon)) {
-    const newLatLng = L.latLng(lat, lon);
+        if (!isNaN(lat) && !isNaN(lon)) {
+          const newLatLng = L.latLng(lat, lon);
 
-    if (marker) {
-      marker.setLatLng(newLatLng);
-    } else {
-      marker = L.marker(newLatLng).addTo(map);
-    }
+          if (marker) {
+            marker.setLatLng(newLatLng);
+          } else {
+            marker = L.marker(newLatLng).addTo(map);
+          }
 
-    map.setView(newLatLng, 16);
-  }
-}
+          map.setView(newLatLng, 16);
+        }
+      }
 
-// Listen for user input
-latInput.addEventListener("change", updateMarkerFromInputs);
-lonInput.addEventListener("change", updateMarkerFromInputs);
+      latInput.addEventListener("change", updateMarkerFromInputs);
+      lonInput.addEventListener("change", updateMarkerFromInputs);
 
       window.uploadMapInitialized = true;
     }
@@ -160,20 +172,5 @@ lonInput.addEventListener("change", updateMarkerFromInputs);
     modal.classList.remove("flex");
   });
 });
-
-document.addEventListener("DOMContentLoaded", () => {
-  const uploadForm = document.getElementById("uploadForm");
-  const fileInput = uploadForm.querySelector('input[name="image"]');
-
-  uploadForm.addEventListener("submit", function (e) {
-    const file = fileInput.files[0];
-    if (file && file.size > 10 * 1024 * 1024) { // 10 MB
-      e.preventDefault();
-      alert("File too large! Please upload an image smaller than 10 MB.");
-    }
-  });
-});
 </script>
-
-
 {% endblock %}

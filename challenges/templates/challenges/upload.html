@@ -33,16 +33,26 @@
   rel="stylesheet"
   href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
 />
-<script
-  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+  const MAPBOX_TOKEN = "{{ mapbox_token }}";  
 </script>
 
 <script>
   // Initialize map
-  const map = L.map('map').setView([33.7756, -84.3963], 15); // default GT campus center
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(map);
+  const map = L.map('map').setView([33.7756, -84.3963], 15);
+
+  L.tileLayer(
+    `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`,
+    {
+      tileSize: 512,
+      zoomOffset: -1,
+      attribution:
+        '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="https://www.openstreetmap.org/">OpenStreetMap</a>',
+      maxZoom: 19
+    }
+  ).addTo(map);
 
   let marker;
 
@@ -59,4 +69,5 @@
     }
   });
 </script>
+
 {% endblock %}

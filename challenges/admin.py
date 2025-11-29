@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib import admin
 from .models import Challenge, Report
-from .widgets import LeafletMapWidget
+from django.conf import settings
 
 class ChallengeAdminForm(forms.ModelForm):
     class Meta:
@@ -20,6 +20,15 @@ class ChallengeAdminForm(forms.ModelForm):
             "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
             "js/admin_map.js",
         )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        token = settings.MAPBOX_TOKEN
+
+        # Add token to HTML attributes so JS can access it
+        self.fields["latitude"].widget.attrs["data-mapbox-token"] = token
+        self.fields["longitude"].widget.attrs["data-mapbox-token"] = token
 
 @admin.register(Challenge)
 class ChallengeAdmin(admin.ModelAdmin):

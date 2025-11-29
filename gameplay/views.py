@@ -1,5 +1,5 @@
-import random
 from math import radians, sin, cos, sqrt, atan2
+from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from challenges.models import Challenge, HiddenChallenge
@@ -52,7 +52,8 @@ def play(request, challenge_id=None):
         if not lat_str or not lon_str:
             return render(request, "gameplay/play.html", {
                 "challenge": challenge,
-                "error": "Click on the map first."
+                "error": "Click on the map first.",
+                "mapbox_token": settings.MAPBOX_TOKEN
             })
         lat, lon = float(lat_str), float(lon_str)
         guess = Guess.objects.create(
@@ -63,7 +64,10 @@ def play(request, challenge_id=None):
         )
         return redirect("gameplay.result", guess_id=guess.id)
 
-    return render(request, "gameplay/play.html", {"challenge": challenge})
+    return render(request, "gameplay/play.html", {
+        "challenge": challenge,
+        "mapbox_token": settings.MAPBOX_TOKEN
+    })
 
 @login_required
 def result(request, guess_id):
@@ -84,4 +88,5 @@ def result(request, guess_id):
         "guess": guess,
         "challenge": challenge,
         "distance": round(distance, 2),
+        "mapbox_token": settings.MAPBOX_TOKEN,
     })

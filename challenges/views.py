@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
@@ -15,18 +16,21 @@ def upload_image(request):
         
         if not image:
             return render(request, "challenges/upload.html", {
-                "error": "Please upload an image."
+                "error": "Please upload an image.",
+                "mapbox_token": settings.MAPBOX_TOKEN
             })
             
         ext = os.path.splitext(image.name)[1].lower()
         if ext not in ALLOWED_EXTENSIONS:
             return render(request, "challenges/upload.html", {
-                "error": f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
+                "error": f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}",
+                "mapbox_token": settings.MAPBOX_TOKEN
             })
             
         if not lat_str or not lon_str:
             return render(request, "challenges/upload.html", {
-                "error": "Please drop a pin on the map."
+                "error": "Please drop a pin on the map.",
+                "mapbox_token": settings.MAPBOX_TOKEN
             })
         
         lat, lon = float(lat_str), float(lon_str)
@@ -38,7 +42,11 @@ def upload_image(request):
             longitude=float(lon),
         )
         return redirect("home.index")
-    return render(request, "challenges/upload.html")
+
+    # GET request, load map
+    return render(request, "challenges/upload.html", {
+        "mapbox_token": settings.MAPBOX_TOKEN
+    })
 
 
 @login_required
@@ -46,14 +54,12 @@ def report_challenge(request, challenge_id):
     challenge = get_object_or_404(Challenge, id=challenge_id)
 
     if request.method != "POST":
-        # Only accept POST
         return redirect(reverse('gameplay.play', args=[challenge.id]))
 
     reason = request.POST.get('reason')
     details = request.POST.get('details', '').strip()
 
     if not reason:
-        # Missing reason — just redirect back
         return redirect(f"{reverse('gameplay.play', args=[challenge.id])}?reported=0")
 
     Report.objects.create(
@@ -63,11 +69,10 @@ def report_challenge(request, challenge_id):
         details=details,
     )
 
-    # Soft-hide the challenge for this user so they won't see it again, but it remains active
     HiddenChallenge.objects.get_or_create(user=request.user, challenge=challenge)
 
-    # Render a short "removed" screen then move player to the next available challenge
     return render(request, "gameplay/removed.html", {
         "message": "This photo has been removed from your play queue. Thank you for your help.",
         "next_url": reverse('gameplay.start'),
+        "challenge": challenge,
     })

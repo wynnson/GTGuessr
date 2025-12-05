@@ -8,3 +8,7 @@ class Guess(models.Model):
     guess_lat = models.FloatField()
     guess_lon = models.FloatField()
     created_at = models.DateTimeField(auto_now_add=True)
+    # Persisted gameplay metrics for future features
+    distance_meters = models.FloatField(null=True, blank=True)
+    time_ms = models.IntegerField(null=True, blank=True)
+    score = models.IntegerField(null=True, blank=True)

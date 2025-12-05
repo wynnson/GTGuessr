@@ -84,9 +84,22 @@ def result(request, guess_id):
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
     distance = R * c
 
+    # Basic scoring: closer guesses yield higher points.
+    # For now, score is based solely on distance; time can be added later.
+    # Example: 1000 points max, subtract 1 point per 10 meters.
+    score = max(0, int(1000 - (distance / 10)))
+
+    # Persist metrics on the Guess for future features (history, leaderboards)
+    guess.distance_meters = float(distance)
+    # time_ms can be captured client-side later; keep as-is if not provided
+    # If provided via POST in future, we could set: guess.time_ms = int(request.POST.get("time_ms"))
+    guess.score = score
+    guess.save(update_fields=["distance_meters", "score"])
+
     return render(request, "gameplay/result.html", {
         "guess": guess,
         "challenge": challenge,
         "distance": round(distance, 2),
+        "score": score,
         "mapbox_token": settings.MAPBOX_TOKEN,
     })

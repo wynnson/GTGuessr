@@ -10,7 +10,7 @@
 
   <form method="POST" enctype="multipart/form-data" class="w-full max-w-2xl">
     {% csrf_token %}
-    <input type="file" name="image" accept="image/*" required class="block w-full mb-4 border p-2 rounded">
+    <input type="file" name="image" id="imageInput" accept="image/*" required class="block w-full mb-4 border p-2 rounded">
 
     <!-- Hidden lat/lon fields -->
     <input type="hidden" id="latitude" name="latitude" required>
@@ -34,6 +34,8 @@
   href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
 />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- ExifReader for reading GPS data from images (supports HEIC) -->
+<script src="https://cdn.jsdelivr.net/npm/exifreader@4.24.0/dist/exif-reader.js"></script>
 
 <script>
   const MAPBOX_TOKEN = "{{ mapbox_token }}";  
@@ -56,16 +58,171 @@
 
   let marker;
 
+  // Function to set location on map
+  function setLocation(lat, lng) {
+    document.getElementById('latitude').value = lat;
+    document.getElementById('longitude').value = lng;
+    
+    const latlng = [lat, lng];
+    if (marker) {
+      marker.setLatLng(latlng);
+    } else {
+      marker = L.marker(latlng).addTo(map);
+    }
+    map.setView(latlng, 18);
+  }
+
   // Drop a pin on click
   map.on('click', function (e) {
     const { lat, lng } = e.latlng;
-    document.getElementById('latitude').value = lat;
-    document.getElementById('longitude').value = lng;
+    setLocation(lat, lng);
+  });
 
-    if (marker) {
-      marker.setLatLng(e.latlng);
-    } else {
-      marker = L.marker(e.latlng).addTo(map);
+  // Extract GPS coordinates from image EXIF data (supports HEIC files)
+  document.getElementById('imageInput').addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const tags = ExifReader.load(arrayBuffer);
+      
+      // Helper function to convert DMS (degrees, minutes, seconds) to decimal degrees
+      function convertDMSToDD(degrees, minutes, seconds, direction) {
+        // Handle both numbers and rational numbers (numerator/denominator)
+        const deg = typeof degrees === 'number' ? degrees : (degrees.numerator / degrees.denominator);
+        const min = typeof minutes === 'number' ? minutes : (minutes.numerator / minutes.denominator);
+        const sec = typeof seconds === 'number' ? seconds : (seconds.numerator / seconds.denominator);
+        
+        let dd = deg + min / 60 + sec / 3600;
+        if (direction === "S" || direction === "W" || direction === 's' || direction === 'w') {
+          dd = dd * -1;
+        }
+        return dd;
+      }
+      
+      // ExifReader provides GPS coordinates in different formats
+      // Try to get GPS data from various possible tag names
+      let lat, lon;
+      
+      // Method 1: Direct GPSLatitude/GPSLongitude (standard EXIF format)
+      if (tags.GPSLatitude && tags.GPSLongitude) {
+        console.log('Found GPSLatitude tag:', tags.GPSLatitude);
+        console.log('Found GPSLongitude tag:', tags.GPSLongitude);
+        
+        // Try description first (might be a string)
+        if (tags.GPSLatitude.description && tags.GPSLongitude.description) {
+          const latDesc = tags.GPSLatitude.description;
+          const lonDesc = tags.GPSLongitude.description;
+          console.log('GPS descriptions:', latDesc, lonDesc);
+          
+          // Check if description is already in decimal format
+          const latNum = parseFloat(latDesc);
+          const lonNum = parseFloat(lonDesc);
+          if (!isNaN(latNum) && !isNaN(lonNum)) {
+            lat = latNum;
+            lon = lonNum;
+            console.log('Parsed from descriptions:', lat, lon);
+          }
+        }
+        
+        // If not found, try value array (DMS format)
+        if ((!lat || !lon || isNaN(lat) || isNaN(lon)) && tags.GPSLatitude.value && tags.GPSLongitude.value) {
+          const latArray = tags.GPSLatitude.value;
+          const lonArray = tags.GPSLongitude.value;
+          const latRef = tags.GPSLatitudeRef ? (tags.GPSLatitudeRef.description || tags.GPSLatitudeRef.value || 'N') : 'N';
+          const lonRef = tags.GPSLongitudeRef ? (tags.GPSLongitudeRef.description || tags.GPSLongitudeRef.value || 'W') : 'W';
+          
+          console.log('GPS value arrays:', latArray, lonArray);
+          console.log('GPS refs:', latRef, lonRef);
+          
+          if (Array.isArray(latArray) && Array.isArray(lonArray) && latArray.length >= 3 && lonArray.length >= 3) {
+            lat = convertDMSToDD(latArray[0], latArray[1], latArray[2], latRef);
+            lon = convertDMSToDD(lonArray[0], lonArray[1], lonArray[2], lonRef);
+            console.log('Converted from DMS:', lat, lon);
+          }
+        }
+      }
+      
+      // Method 2: Try HEIC-specific tags (QuickTime format)
+      if (!lat || !lon) {
+        // HEIC files may store GPS in different tags
+        if (tags['QuickTime:GPSCoordinates']) {
+          const coords = tags['QuickTime:GPSCoordinates'].description;
+          // Format might be "lat, lon" or similar
+          if (coords && typeof coords === 'string') {
+            const parts = coords.split(',');
+            if (parts.length >= 2) {
+              lat = parseFloat(parts[0].trim());
+              lon = parseFloat(parts[1].trim());
+            }
+          }
+        }
+      }
+      
+      // Method 3: Try other GPS tag variations (for HEIC and other formats)
+      if (!lat || !lon || isNaN(lat) || isNaN(lon)) {
+        // Check for other possible GPS tag formats
+        for (const tagName in tags) {
+          if (tagName.includes('GPS') || tagName.includes('Location')) {
+            const tag = tags[tagName];
+            
+            // Try to extract latitude
+            if (tagName.includes('Latitude') && (!lat || isNaN(lat))) {
+              console.log('Trying tag for latitude:', tagName, tag);
+              if (tag.description && !isNaN(parseFloat(tag.description))) {
+                lat = parseFloat(tag.description);
+              } else if (tag.value) {
+                if (Array.isArray(tag.value) && tag.value.length >= 3) {
+                  const refTagName = tagName.replace('Latitude', 'LatitudeRef');
+                  const latRef = tags[refTagName] ? 
+                    (tags[refTagName].description || tags[refTagName].value || 'N') : 'N';
+                  lat = convertDMSToDD(tag.value[0], tag.value[1], tag.value[2], latRef);
+                } else if (typeof tag.value === 'number') {
+                  lat = tag.value;
+                }
+              }
+            }
+            
+            // Try to extract longitude
+            if (tagName.includes('Longitude') && (!lon || isNaN(lon))) {
+              console.log('Trying tag for longitude:', tagName, tag);
+              if (tag.description && !isNaN(parseFloat(tag.description))) {
+                lon = parseFloat(tag.description);
+              } else if (tag.value) {
+                if (Array.isArray(tag.value) && tag.value.length >= 3) {
+                  const refTagName = tagName.replace('Longitude', 'LongitudeRef');
+                  const lonRef = tags[refTagName] ? 
+                    (tags[refTagName].description || tags[refTagName].value || 'W') : 'W';
+                  lon = convertDMSToDD(tag.value[0], tag.value[1], tag.value[2], lonRef);
+                } else if (typeof tag.value === 'number') {
+                  lon = tag.value;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // If we found valid coordinates, set them
+      if (lat && lon && !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0) {
+        // Make longitude negative if it's positive (all GT coordinates are West, so negative)
+        if (lon > 0) {
+          lon = -lon;
+        }
+        console.log('✓ GPS coordinates found and set:', lat, lon);
+        setLocation(lat, lon);
+      } else {
+        console.log('✗ No GPS coordinates found in image.');
+        console.log('GPSLatitude tag:', tags.GPSLatitude);
+        console.log('GPSLongitude tag:', tags.GPSLongitude);
+        console.log('GPSLatitudeRef tag:', tags.GPSLatitudeRef);
+        console.log('GPSLongitudeRef tag:', tags.GPSLongitudeRef);
+        console.log('Available tags:', Object.keys(tags));
+      }
+    } catch (error) {
+      console.log('Could not extract GPS data from image:', error);
+      // If client-side extraction fails, user can manually set location
     }
   });
 </script>

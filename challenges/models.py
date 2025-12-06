@@ -15,6 +15,24 @@ class Challenge(models.Model):
 
     def __str__(self):
         return f"Challenge by {self.uploader.username} ({self.created_at.date()})"
+    
+    def get_image_url(self):
+        """
+        Returns the image URL, using conversion view for HEIC files.
+        This ensures HEIC images are converted on-the-fly if needed.
+        """
+        if not self.image:
+            return None
+        
+        image_ext = os.path.splitext(self.image.name)[1].lower()
+        
+        # For HEIC files, use the conversion view
+        if image_ext == '.heic':
+            from django.urls import reverse
+            return reverse('challenges.image', args=[self.id])
+        
+        # For other formats, use the direct URL
+        return self.image.url
 
 @receiver(post_delete, sender=Challenge)
 def delete_challenge_image(sender, instance, **kwargs):

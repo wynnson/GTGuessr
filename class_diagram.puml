@@ -1,0 +1,174 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "Django Framework" {
+  class AbstractUser {
+    +username: CharField
+    +email: EmailField
+    +password: CharField
+    +is_staff: BooleanField
+    +is_superuser: BooleanField
+    +date_joined: DateTimeField
+  }
+  
+  class Model {
+    +id: AutoField
+    +save()
+    +delete()
+  }
+  
+  class ModelForm {
+    +is_valid(): bool
+    +save()
+  }
+  
+  class ModelAdmin {
+    +list_display: tuple
+    +list_filter: tuple
+    +search_fields: tuple
+  }
+  
+  class TextInput {
+    +render()
+  }
+}
+
+package "accounts" {
+  class User {
+    +role: CharField
+    +total_score: IntegerField
+    +games_played: PositiveIntegerField
+    +challenges_created: PositiveIntegerField
+    +best_distance_meters: FloatField
+    +join_date: DateTimeField
+    +average_score: property
+    +__str__(): str
+  }
+  
+  class CustomUserAdmin {
+    +list_display: tuple
+    +fieldsets: tuple
+    +add_fieldsets: tuple
+  }
+}
+
+package "challenges" {
+  class Challenge {
+    +uploader: ForeignKey<User>
+    +image: ImageField
+    +latitude: FloatField
+    +longitude: FloatField
+    +is_active: BooleanField
+    +created_at: DateTimeField
+    +__str__(): str
+  }
+  
+  class Report {
+    +REASON_CHOICES: tuple
+    +reporter: ForeignKey<User>
+    +challenge: ForeignKey<Challenge>
+    +reason: CharField
+    +details: TextField
+    +created_at: DateTimeField
+    +resolved: BooleanField
+    +__str__(): str
+  }
+  
+  class HiddenChallenge {
+    +user: ForeignKey<User>
+    +challenge: ForeignKey<Challenge>
+    +created_at: DateTimeField
+    +__str__(): str
+  }
+  
+  class ChallengeForm {
+    +Meta: class
+    +fields: list
+    +widgets: dict
+  }
+  
+  class ChallengeAdminForm {
+    +Meta: class
+    +Media: class
+    +fields: str
+    +widgets: dict
+  }
+  
+  class ChallengeAdmin {
+    +form: ChallengeAdminForm
+  }
+  
+  class ReportAdmin {
+    +list_display: tuple
+    +list_filter: tuple
+    +search_fields: tuple
+  }
+  
+  class LeafletMapWidget {
+    +template_name: str
+    +Media: class
+    +render(): str
+  }
+}
+
+package "gameplay" {
+  class Guess {
+    +player: ForeignKey<User>
+    +challenge: ForeignKey<Challenge>
+    +guess_lat: FloatField
+    +guess_lon: FloatField
+    +created_at: DateTimeField
+  }
+}
+
+' Inheritance relationships
+AbstractUser <|-- User
+Model <|-- User
+Model <|-- Challenge
+Model <|-- Guess
+Model <|-- Report
+Model <|-- HiddenChallenge
+ModelForm <|-- ChallengeForm
+ModelForm <|-- ChallengeAdminForm
+ModelAdmin <|-- ChallengeAdmin
+ModelAdmin <|-- ReportAdmin
+ModelAdmin <|-- CustomUserAdmin
+TextInput <|-- LeafletMapWidget
+
+' Associations
+User "1" --> "*" Challenge : uploads
+User "1" --> "*" Guess : makes
+User "1" --> "*" Report : creates
+User "1" --> "*" HiddenChallenge : hides
+Challenge "1" --> "*" Guess : receives
+Challenge "1" --> "*" Report : reported_in
+Challenge "1" --> "*" HiddenChallenge : hidden_in
+ChallengeAdminForm --> Challenge : manages
+ChallengeAdmin --> Challenge : administers
+ReportAdmin --> Report : administers
+CustomUserAdmin --> User : administers
+LeafletMapWidget --> ChallengeForm : used_by
+LeafletMapWidget --> ChallengeAdminForm : used_by
+
+note right of Challenge
+  Signal receiver deletes
+  image file on deletion
+end note
+
+note right of HiddenChallenge
+  Unique constraint on
+  (user, challenge)
+end note
+
+note right of Report
+  REASON_CHOICES:
+  - inaccurate
+  - inappropriate
+  - spam
+  - other
+end note
+
+@enduml
+
+
+

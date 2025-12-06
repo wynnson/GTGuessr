@@ -84,10 +84,13 @@ def result(request, guess_id):
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
     distance = R * c
 
-    # Basic scoring: closer guesses yield higher points.
-    # For now, score is based solely on distance; time can be added later.
-    # Example: 1000 points max, subtract 1 point per 10 meters.
-    score = max(0, int(1000 - (distance / 10)))
+    # Scoring system: 0 meters = 1000 points, 2500+ meters = 0 points
+    # Linear interpolation between these points
+    if distance >= 2500:
+        score = 0
+    else:
+        # Linear formula: score decreases linearly from 1000 at 0m to 0 at 2500m
+        score = max(0, int(1000 * (1 - distance / 2500)))
 
     # Persist metrics on the Guess for future features (history, leaderboards)
     guess.distance_meters = float(distance)

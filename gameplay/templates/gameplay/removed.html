@@ -8,7 +8,10 @@
 
     {% if challenge %}
       <div class="mb-4 bg-white rounded overflow-hidden shadow border border-gtgold">
-        <img src="{{ challenge.image.url }}" alt="Reported challenge image" class="w-full object-contain max-h-80" />
+        <img src="{{ challenge.get_image_url }}" 
+            alt="Reported challenge image" 
+            class="w-full object-contain max-h-80"
+            onerror="this.onerror=null; this.src='{{ challenge.image.url }}';" />
       </div>
     {% endif %}
 

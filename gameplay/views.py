@@ -1,5 +1,7 @@
 from math import radians, sin, cos, sqrt, atan2
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.db.models import Count, Q, Sum
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from challenges.models import Challenge, HiddenChallenge
@@ -105,4 +107,20 @@ def result(request, guess_id):
         "distance": round(distance, 2),
         "score": score,
         "mapbox_token": settings.MAPBOX_TOKEN,
+    })
+
+
+def leaderboard(request):
+    User = get_user_model()
+    leaderboard_entries = (
+        User.objects.filter(guess__score__isnull=False)
+        .annotate(
+            total_points=Sum("guess__score", filter=Q(guess__score__isnull=False)),
+            rounds_played=Count("guess", filter=Q(guess__score__isnull=False)),
+        )
+        .order_by("-total_points", "username")[:10]
+    )
+
+    return render(request, "gameplay/leaderboard.html", {
+        "leaderboard": leaderboard_entries,
     })

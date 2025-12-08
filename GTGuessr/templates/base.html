@@ -34,6 +34,7 @@
       </a>
 
       <div class="space-x-4">
+        <a href="{% url 'gameplay.leaderboard' %}" class="hover:underline">Leaderboard</a>
         {% if user.is_authenticated %}
           <a href="{% url 'accounts.logout' %}" class="hover:underline">Logout</a>
         {% else %}

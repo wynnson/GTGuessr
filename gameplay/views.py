@@ -124,3 +124,14 @@ def leaderboard(request):
     return render(request, "gameplay/leaderboard.html", {
         "leaderboard": leaderboard_entries,
     })
+
+
+@login_required
+def history(request):
+    guesses = (
+        Guess.objects.filter(player=request.user, score__isnull=False)
+        .select_related("challenge")
+        .order_by("-created_at")
+    )
+
+    return render(request, "gameplay/history.html", {"guesses": guesses})

@@ -35,6 +35,9 @@
 
       <div class="space-x-4">
         {% if user.is_authenticated %}
+          {% if user.is_staff %}
+            <a href="{% url 'challenges.review_reports' %}" class="hover:underline">Review Reports</a>
+          {% endif %}
           <a href="{% url 'accounts.logout' %}" class="hover:underline">Logout</a>
         {% else %}
           <a href="{% url 'accounts.login' %}" class="hover:underline">Login</a>

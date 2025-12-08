@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.urls import reverse
 from .models import Challenge, Report, HiddenChallenge
 import os
@@ -75,4 +75,26 @@ def report_challenge(request, challenge_id):
         "message": "This photo has been removed from your play queue. Thank you for your help.",
         "next_url": reverse('gameplay.start'),
         "challenge": challenge,
+    })
+
+@user_passes_test(lambda u: u.is_superuser)
+def review_reports(request):
+    reports = Report.objects.all().order_by('-created_at')
+    if request.method == "POST":
+        action = request.POST.get("action")
+        report_id = request.POST.get("report_id")
+        report = get_object_or_404(Report, id=report_id)
+
+        if action == "dismiss":
+            report.delete()
+        elif action == "remove":
+            challenge = report.challenge
+            challenge.is_active = False
+            challenge.save()
+            Report.objects.filter(challenge=challenge).delete()
+
+        return redirect('challenges.review_reports')
+
+    return render(request, "challenges/review_reports.html", {
+        "reports": reports
     })

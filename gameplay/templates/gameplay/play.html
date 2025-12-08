@@ -15,8 +15,10 @@
   <div class="flex justify-center">
     <div class="max-w-3xl w-full space-y-3">
       
-      <img src="{{ challenge.image.url }}" alt="Challenge image"
-          class="w-full object-contain max-h-[26rem] mx-auto rounded-lg shadow-lg" />
+      <img src="{{ challenge.get_image_url }}" 
+          alt="Challenge image"
+          class="w-full object-contain max-h-[26rem] mx-auto rounded-lg shadow-lg"
+          onerror="this.onerror=null; this.src='{{ challenge.image.url }}';" />
 
       <div class="flex justify-center">
         <button id="reportToggle"

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}My Scores{% endblock %}
+{% block content %}
+<div class="bg-white/5 border border-gtgold/40 rounded-xl shadow-lg">
+  <div class="px-6 py-5 border-b border-gtgold/40">
+    <p class="text-sm uppercase tracking-wide text-gtgold font-semibold">My Scores</p>
+    <h1 class="text-3xl font-bold text-white mt-2">Previous Games</h1>
+    <p class="text-gray-200 mt-2">See how you performed and when you played.</p>
+  </div>
+
+  {% if guesses %}
+    <div class="grid grid-cols-12 px-6 py-3 text-xs font-semibold text-gtgold uppercase tracking-wide bg-white/5">
+      <div class="col-span-5">Date Played</div>
+      <div class="col-span-4">Challenge</div>
+      <div class="col-span-3 text-right">Score</div>
+    </div>
+
+    <div class="divide-y divide-gtgold/30">
+      {% for guess in guesses %}
+        <div class="grid grid-cols-12 items-center px-6 py-4 bg-white/5">
+          <div class="col-span-5 text-white">{{ guess.created_at|date:"M j, Y, g:i a" }}</div>
+          <div class="col-span-4 text-gray-200">Challenge {{ guess.challenge.id }}</div>
+          <div class="col-span-3 text-right text-white">{{ guess.score|default:0 }} pts</div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="p-6 text-center text-gray-200">
+      <p class="text-lg font-semibold text-white">No games recorded yet.</p>
+      <p class="mt-2">Play a round to see your scores here.</p>
+      <a href="{% url 'gameplay.start' %}" class="inline-block mt-4 bg-gtgold text-gtblue px-5 py-2 rounded-md font-semibold hover:bg-yellow-400">Start Playing</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,60 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor User as user
+actor Admin as admin
+database "Database\n(Photos & Metadata)" as db
+
+rectangle "GTGuessr System" {
+  package "Gameplay" {
+    usecase "Start Play Session" as UC1
+    usecase "View Challenge Image" as UC2
+    usecase "Submit Guess" as UC3
+    usecase "View Result" as UC4
+  }
+  
+  package "Challenge Management" {
+    usecase "Upload Challenge Image" as UC5
+    usecase "Select Location on Map" as UC6
+    usecase "Report Challenge" as UC7
+  }
+  
+  package "Administration" {
+    usecase "Moderate Challenges" as UC8
+    usecase "Review Reports" as UC9
+  }
+}
+
+' User playing the game flow
+user --> UC1 : initiates
+UC1 ..> UC2 : includes
+UC2 ..> UC3 : includes
+UC3 ..> UC4 : includes
+
+' User uploading a challenge flow
+user --> UC5 : initiates
+UC5 ..> UC6 : includes
+
+' User reporting flow
+user --> UC7
+
+' Admin moderation
+admin --> UC8
+admin --> UC9
+
+' Database interactions
+UC1 --> db : queries available challenges
+UC2 --> db : retrieves challenge image & metadata
+UC3 --> db : creates guess record
+UC4 --> db : retrieves guess & challenge data
+UC5 --> db : stores challenge image & coordinates
+UC7 --> db : creates report record
+UC8 --> db : updates challenge moderation status
+UC9 --> db : queries report records
+
+' Relationships
+UC7 ..> UC9 : triggers
+
+@enduml
+

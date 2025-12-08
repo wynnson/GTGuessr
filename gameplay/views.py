@@ -1,5 +1,7 @@
 from math import radians, sin, cos, sqrt, atan2
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.db.models import Count, Q, Sum
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from challenges.models import Challenge, HiddenChallenge
@@ -84,10 +86,13 @@ def result(request, guess_id):
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
     distance = R * c
 
-    # Basic scoring: closer guesses yield higher points.
-    # For now, score is based solely on distance; time can be added later.
-    # Example: 1000 points max, subtract 1 point per 10 meters.
-    score = max(0, int(1000 - (distance / 10)))
+    # Scoring system: 0 meters = 1000 points, 2500+ meters = 0 points
+    # Linear interpolation between these points
+    if distance >= 2500:
+        score = 0
+    else:
+        # Linear formula: score decreases linearly from 1000 at 0m to 0 at 2500m
+        score = max(0, int(1000 * (1 - distance / 2500)))
 
     # Persist metrics on the Guess for future features (history, leaderboards)
     guess.distance_meters = float(distance)
@@ -103,3 +108,30 @@ def result(request, guess_id):
         "score": score,
         "mapbox_token": settings.MAPBOX_TOKEN,
     })
+
+
+def leaderboard(request):
+    User = get_user_model()
+    leaderboard_entries = (
+        User.objects.filter(guess__score__isnull=False)
+        .annotate(
+            total_points=Sum("guess__score", filter=Q(guess__score__isnull=False)),
+            rounds_played=Count("guess", filter=Q(guess__score__isnull=False)),
+        )
+        .order_by("-total_points", "username")[:10]
+    )
+
+    return render(request, "gameplay/leaderboard.html", {
+        "leaderboard": leaderboard_entries,
+    })
+
+
+@login_required
+def history(request):
+    guesses = (
+        Guess.objects.filter(player=request.user, score__isnull=False)
+        .select_related("challenge")
+        .order_by("-created_at")
+    )
+
+    return render(request, "gameplay/history.html", {"guesses": guesses})

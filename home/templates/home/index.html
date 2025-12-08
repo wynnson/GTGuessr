@@ -42,6 +42,35 @@
   {% endif %}
 </div>
 
+<div class="mt-10">
+  <div class="bg-white/10 border border-gtgold/40 rounded-xl shadow-lg p-6 max-w-3xl mx-auto">
+    <div class="flex items-start justify-between">
+      <div>
+        <p class="text-sm uppercase tracking-wide text-gtgold font-semibold">Georgia Tech Weather</p>
+        {% if weather %}
+          <h2 class="text-4xl font-bold text-white mt-2">
+            {{ weather.temperature }}°{{ weather.temperature_unit }}
+          </h2>
+          <p class="text-lg text-gray-200">{{ weather.short_forecast }}</p>
+          {% if weather.wind_speed %}
+            <p class="text-sm text-gray-300 mt-1">Wind {{ weather.wind_speed }} {{ weather.wind_direction }}</p>
+          {% endif %}
+          {% if weather.detailed_forecast %}
+            <p class="text-sm text-gray-200 mt-3">{{ weather.detailed_forecast }}</p>
+          {% endif %}
+        {% else %}
+          <h2 class="text-2xl font-bold text-white mt-2">Weather unavailable</h2>
+          <p class="text-gray-200">We couldn’t load the forecast right now. Try again soon.</p>
+        {% endif %}
+      </div>
+      <div class="text-right text-gray-200 text-sm">
+        <p>Atlanta, GA (Georgia Tech)</p>
+        <p class="text-gray-300">Data: National Weather Service</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Upload Modal -->
 <div id="uploadModal"
   class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
@@ -50,6 +79,11 @@
       class="absolute top-3 right-3 text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
 
     <h2 class="text-2xl text-gtblue font-bold mb-4 text-center">Upload a New Challenge</h2>
+
+    <!-- Error message for no GPS location -->
+    <div id="gpsError" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+      <strong>No GPS location found:</strong> Please drop a pin on the map to set the challenge location.
+    </div>
 
     <ul class="mt-3 text-xs text-gray-600 list-disc list-inside bg-gray-50 p-3 rounded-md border">
       <strong>Submission Guidelines:</strong>
@@ -98,6 +132,8 @@
 <!-- Leaflet + Modal Script -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<!-- ExifReader for reading GPS data from images (supports HEIC) -->
+<script src="https://cdn.jsdelivr.net/npm/exifreader@4.24.0/dist/exif-reader.js"></script>
 
 <!-- Mapbox token -->
 <script>
@@ -109,15 +145,177 @@ document.addEventListener("DOMContentLoaded", () => {
   const modal = document.getElementById("uploadModal");
   const openBtn = document.getElementById("openUploadModal");
   const closeBtn = document.getElementById("closeUploadModal");
+  const gpsError = document.getElementById("gpsError");
+  const imageInput = document.getElementById("image");
+  const uploadForm = document.getElementById("uploadForm");
+  let map, marker;
 
-  // Open modal
-  openBtn.addEventListener("click", () => {
-    modal.classList.remove("hidden");
-    modal.classList.add("flex");
+  // Helper function to convert DMS (degrees, minutes, seconds) to decimal degrees
+  function convertDMSToDD(degrees, minutes, seconds, direction) {
+    // Handle both numbers and rational numbers (numerator/denominator)
+    const deg = typeof degrees === 'number' ? degrees : (degrees.numerator / degrees.denominator);
+    const min = typeof minutes === 'number' ? minutes : (minutes.numerator / minutes.denominator);
+    const sec = typeof seconds === 'number' ? seconds : (seconds.numerator / seconds.denominator);
+    
+    let dd = deg + min / 60 + sec / 3600;
+    if (direction === "S" || direction === "W" || direction === 's' || direction === 'w') {
+      dd = dd * -1;
+    }
+    return dd;
+  }
 
-    // Initialize map only once
+  // Function to set location on map
+  function setLocation(lat, lng) {
+    const latInput = document.getElementById("latitude");
+    const lonInput = document.getElementById("longitude");
+    
+    latInput.value = lat;
+    lonInput.value = lng;
+    
+    // Hide error if location is set
+    gpsError.classList.add("hidden");
+    
+    // Update map marker (only if map is initialized)
+    if (map) {
+      const latlng = [lat, lng];
+      if (marker) {
+        marker.setLatLng(latlng);
+      } else {
+        marker = L.marker(latlng).addTo(map);
+      }
+      map.setView(latlng, 18);
+    }
+  }
+
+  // Extract GPS coordinates from image EXIF data (supports HEIC files)
+  imageInput.addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Hide previous error
+    gpsError.classList.add("hidden");
+    
+    // Make sure map is initialized
+    if (!map && window.uploadMapInitialized) {
+      map = window.uploadMap;
+    } else if (!window.uploadMapInitialized) {
+      // If modal is open, initialize map
+      if (!modal.classList.contains("hidden")) {
+        initializeMap();
+      }
+    }
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const tags = ExifReader.load(arrayBuffer);
+      
+      let lat, lon;
+      
+      // Method 1: Direct GPSLatitude/GPSLongitude (standard EXIF format)
+      if (tags.GPSLatitude && tags.GPSLongitude) {
+        // Try description first (might be a string)
+        if (tags.GPSLatitude.description && tags.GPSLongitude.description) {
+          const latDesc = tags.GPSLatitude.description;
+          const lonDesc = tags.GPSLongitude.description;
+          
+          // Check if description is already in decimal format
+          const latNum = parseFloat(latDesc);
+          const lonNum = parseFloat(lonDesc);
+          if (!isNaN(latNum) && !isNaN(lonNum)) {
+            lat = latNum;
+            lon = lonNum;
+          }
+        }
+        
+        // If not found, try value array (DMS format)
+        if ((!lat || !lon || isNaN(lat) || isNaN(lon)) && tags.GPSLatitude.value && tags.GPSLongitude.value) {
+          const latArray = tags.GPSLatitude.value;
+          const lonArray = tags.GPSLongitude.value;
+          const latRef = tags.GPSLatitudeRef ? (tags.GPSLatitudeRef.description || tags.GPSLatitudeRef.value || 'N') : 'N';
+          const lonRef = tags.GPSLongitudeRef ? (tags.GPSLongitudeRef.description || tags.GPSLongitudeRef.value || 'W') : 'W';
+          
+          if (Array.isArray(latArray) && Array.isArray(lonArray) && latArray.length >= 3 && lonArray.length >= 3) {
+            lat = convertDMSToDD(latArray[0], latArray[1], latArray[2], latRef);
+            lon = convertDMSToDD(lonArray[0], lonArray[1], lonArray[2], lonRef);
+          }
+        }
+      }
+      
+      // Method 2: Try HEIC-specific tags (QuickTime format)
+      if (!lat || !lon || isNaN(lat) || isNaN(lon)) {
+        if (tags['QuickTime:GPSCoordinates']) {
+          const coords = tags['QuickTime:GPSCoordinates'].description;
+          if (coords && typeof coords === 'string') {
+            const parts = coords.split(',');
+            if (parts.length >= 2) {
+              lat = parseFloat(parts[0].trim());
+              lon = parseFloat(parts[1].trim());
+            }
+          }
+        }
+      }
+      
+      // Method 3: Try other GPS tag variations
+      if (!lat || !lon || isNaN(lat) || isNaN(lon)) {
+        for (const tagName in tags) {
+          if (tagName.includes('GPS') || tagName.includes('Location')) {
+            const tag = tags[tagName];
+            
+            if (tagName.includes('Latitude') && (!lat || isNaN(lat))) {
+              if (tag.description && !isNaN(parseFloat(tag.description))) {
+                lat = parseFloat(tag.description);
+              } else if (tag.value) {
+                if (Array.isArray(tag.value) && tag.value.length >= 3) {
+                  const refTagName = tagName.replace('Latitude', 'LatitudeRef');
+                  const latRef = tags[refTagName] ? 
+                    (tags[refTagName].description || tags[refTagName].value || 'N') : 'N';
+                  lat = convertDMSToDD(tag.value[0], tag.value[1], tag.value[2], latRef);
+                } else if (typeof tag.value === 'number') {
+                  lat = tag.value;
+                }
+              }
+            }
+            
+            if (tagName.includes('Longitude') && (!lon || isNaN(lon))) {
+              if (tag.description && !isNaN(parseFloat(tag.description))) {
+                lon = parseFloat(tag.description);
+              } else if (tag.value) {
+                if (Array.isArray(tag.value) && tag.value.length >= 3) {
+                  const refTagName = tagName.replace('Longitude', 'LongitudeRef');
+                  const lonRef = tags[refTagName] ? 
+                    (tags[refTagName].description || tags[refTagName].value || 'W') : 'W';
+                  lon = convertDMSToDD(tag.value[0], tag.value[1], tag.value[2], lonRef);
+                } else if (typeof tag.value === 'number') {
+                  lon = tag.value;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // If we found valid coordinates, set them
+      if (lat && lon && !isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0) {
+        // Make longitude negative if it's positive (all GT coordinates are West, so negative)
+        if (lon > 0) {
+          lon = -lon;
+        }
+        setLocation(lat, lon);
+      } else {
+        // Show error if no GPS found
+        gpsError.classList.remove("hidden");
+      }
+    } catch (error) {
+      console.log('Could not extract GPS data from image:', error);
+      // Show error if extraction fails
+      gpsError.classList.remove("hidden");
+    }
+  });
+
+  // Initialize map function
+  function initializeMap() {
     if (!window.uploadMapInitialized) {
-      const map = L.map('map').setView([33.7766, -84.3963], 16);
+      map = L.map('map').setView([33.7766, -84.3963], 16);
 
       // Mapbox tiles
       L.tileLayer(
@@ -130,13 +328,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       ).addTo(map);
 
-      let marker;
-
       map.on('click', e => {
         if (marker) map.removeLayer(marker);
         marker = L.marker(e.latlng).addTo(map);
         document.getElementById('latitude').value = e.latlng.lat;
         document.getElementById('longitude').value = e.latlng.lng;
+        // Hide error when user manually sets location
+        gpsError.classList.add("hidden");
       });
 
       const latInput = document.getElementById("latitude");
@@ -156,6 +354,8 @@ document.addEventListener("DOMContentLoaded", () => {
           }
 
           map.setView(newLatLng, 16);
+          // Hide error when user manually sets location
+          gpsError.classList.add("hidden");
         }
       }
 
@@ -163,6 +363,31 @@ document.addEventListener("DOMContentLoaded", () => {
       lonInput.addEventListener("change", updateMarkerFromInputs);
 
       window.uploadMapInitialized = true;
+      window.uploadMap = map; // Store map reference for GPS extraction
+    } else {
+      map = window.uploadMap;
+    }
+  }
+
+  // Open modal
+  openBtn.addEventListener("click", () => {
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+    // Initialize map when modal opens
+    initializeMap();
+  });
+
+  // Prevent form submission if no location is set
+  uploadForm.addEventListener("submit", function(e) {
+    const latInput = document.getElementById("latitude");
+    const lonInput = document.getElementById("longitude");
+    const lat = latInput.value.trim();
+    const lon = lonInput.value.trim();
+
+    if (!lat || !lon || isNaN(parseFloat(lat)) || isNaN(parseFloat(lon))) {
+      e.preventDefault();
+      gpsError.classList.remove("hidden");
+      return false;
     }
   });
 
@@ -170,6 +395,13 @@ document.addEventListener("DOMContentLoaded", () => {
   closeBtn.addEventListener("click", () => {
     modal.classList.add("hidden");
     modal.classList.remove("flex");
+    // Reset form and error when closing
+    uploadForm.reset();
+    gpsError.classList.add("hidden");
+    if (marker) {
+      map.removeLayer(marker);
+      marker = null;
+    }
   });
 });
 </script>

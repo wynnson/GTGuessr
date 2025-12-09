@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Review Reports{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto bg-gtblue p-8 rounded shadow-lg">
+  <h1 class="text-2xl text-gtgold font-bold mb-4">Reported Challenges</h1>
+
+  {% if reports and reports.count > 0 %}
+    <div class="space-y-6">
+      {% for report in reports %}
+        <div class="bg-white text-gtblue rounded shadow p-6 flex flex-col md:flex-row md:items-start md:space-x-6">
+          <div class="w-full md:w-64 mb-4 md:mb-0">
+              <div class="bg-gray-100 rounded overflow-hidden border border-gtgold">
+              <img src="{{ report.challenge.image.url }}" alt="Challenge image" class="w-full object-cover h-56 cursor-pointer" onclick="openImageModal('{{ report.challenge.image.url }}')" />
+            </div>
+          </div>
+
+          <div class="flex-1">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="font-semibold">Reported by: <span class="font-medium">{{ report.reporter.username }}</span></p>
+                <p class="text-sm text-gray-500">Reason: <span class="font-medium">{{ report.get_reason_display }}</span></p>
+                <p class="text-sm text-gray-400">Submitted: {{ report.created_at|date:"M d, Y H:i" }}</p>
+              </div>
+
+              <div class="text-right">
+                <p class="text-sm text-gray-500">Challenge ID: <span class="font-medium">{{ report.challenge.id }}</span></p>
+              </div>
+            </div>
+
+            {% if report.details %}
+              <div class="mt-3 text-sm text-gray-700">{{ report.details }}</div>
+            {% endif %}
+
+            <div class="mt-4 flex space-x-3">
+              <form method="post" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="report_id" value="{{ report.id }}">
+                <button name="action" value="dismiss" type="submit" class="bg-gtgold text-gtblue px-3 py-1 rounded font-semibold hover:bg-yellow-400">Dismiss</button>
+              </form>
+
+              <form method="post" class="inline" onsubmit="return confirm('Are you sure you want to remove this challenge from the game?');">
+                {% csrf_token %}
+                <input type="hidden" name="report_id" value="{{ report.id }}">
+                <button name="action" value="remove" type="submit" class="bg-red-600 text-white px-3 py-1 rounded font-semibold hover:bg-red-500">Remove</button>
+              </form>
+
+              <!-- Magnify button -->
+              <button type="button" onclick="openImageModal('{{ report.challenge.image.url }}')" class="ml-2 bg-white text-gtblue px-3 py-1 rounded font-semibold border border-gray-200 hover:shadow">Magnify</button>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+  {% else %}
+    <div class="text-center py-8">
+      <p class="text-gray-300">There are no reports to review right now.</p>
+    </div>
+  {% endif %}
+
+  <div class="mt-6">
+    <a href="{% url 'home.index' %}" class="inline-block bg-gtgold text-gtblue px-4 py-2 rounded font-semibold hover:bg-yellow-400">Return Home</a>
+  </div>
+</div>
+
+<!-- Image modal / lightbox -->
+<div id="imageModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-75 p-4">
+  <div class="relative max-w-5xl w-full">
+    <button aria-label="Close" id="modalCloseBtn" class="absolute right-2 top-2 text-white bg-gtgold rounded-full p-1 hover:opacity-90">✕</button>
+    <img id="modalImage" src="" alt="Full size challenge" class="w-full h-auto rounded shadow-lg" />
+  </div>
+</div>
+
+<script>
+  (function () {
+    const imageModal = document.getElementById('imageModal');
+    const modalImage = document.getElementById('modalImage');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+
+    window.openImageModal = function (src) {
+      modalImage.src = src;
+      imageModal.classList.remove('hidden');
+      imageModal.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeImageModal() {
+      modalImage.src = '';
+      imageModal.classList.remove('flex');
+      imageModal.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    // Close when clicking outside of image or clicking close button
+    imageModal.addEventListener('click', function (e) {
+      if (e.target === imageModal || e.target === modalCloseBtn) {
+        closeImageModal();
+      }
+    });
+
+    // Close on Escape
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !imageModal.classList.contains('hidden')) {
+        closeImageModal();
+      }
+    });
+  })();
+</script>
+
+{% endblock %}

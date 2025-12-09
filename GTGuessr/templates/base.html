@@ -37,6 +37,9 @@
         <a href="{% url 'gameplay.leaderboard' %}" class="hover:underline">Leaderboard</a>
         {% if user.is_authenticated %}
           <a href="{% url 'gameplay.history' %}" class="hover:underline">My Scores</a>
+          {% if user.is_staff %}
+            <a href="{% url 'challenges.review_reports' %}" class="hover:underline">Review Reports</a>
+          {% endif %}
           <a href="{% url 'accounts.logout' %}" class="hover:underline">Logout</a>
         {% else %}
           <a href="{% url 'accounts.login' %}" class="hover:underline">Login</a>

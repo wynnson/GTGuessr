@@ -7,7 +7,6 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.http import HttpResponse, Http404
 from io import BytesIO
 import os
-import tempfile
 
 def extract_gps_from_image(image_file):
     """
@@ -32,68 +31,52 @@ def extract_gps_from_image(image_file):
                     # pillow-heif not installed, will try exifread instead
                     pass
             
-            # Save uploaded file temporarily to read it
-            with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
-                for chunk in image_file.chunks():
-                    tmp_file.write(chunk)
-                tmp_file_path = tmp_file.name
+            image_file.seek(0)
+            image_bytes = image_file.read()
+            image = Image.open(BytesIO(image_bytes))
             
-            try:
-                image = Image.open(tmp_file_path)
-                
-                # Get EXIF data
-                exif_data = image.getexif()
-                if not exif_data:
-                    return None, None
-                
-                # Find GPS info tag
-                gps_info = None
-                for tag_id, value in exif_data.items():
-                    tag = TAGS.get(tag_id, tag_id)
-                    if tag == 'GPSInfo':
-                        gps_info = value
-                        break
-                
-                if not gps_info:
-                    return None, None
-                
-                # Extract GPS coordinates
-                gps_data = {}
-                for tag_id, value in gps_info.items():
-                    tag = GPSTAGS.get(tag_id, tag_id)
-                    gps_data[tag] = value
-                
-                # Get latitude and longitude
-                lat = gps_data.get('GPSLatitude')
-                lat_ref = gps_data.get('GPSLatitudeRef', 'N')
-                lon = gps_data.get('GPSLongitude')
-                lon_ref = gps_data.get('GPSLongitudeRef', 'E')
-                
-                if lat and lon:
-                    # Convert from degrees, minutes, seconds to decimal
-                    def dms_to_dd(dms, ref):
-                        degrees = float(dms[0])
-                        minutes = float(dms[1])
-                        seconds = float(dms[2])
-                        dd = degrees + minutes / 60.0 + seconds / 3600.0
-                        if ref in ['S', 'W']:
-                            dd = -dd
-                        return dd
-                    
-                    latitude = dms_to_dd(lat, lat_ref)
-                    longitude = dms_to_dd(lon, lon_ref)
-                    return latitude, longitude
-                    
-            except (OSError, IOError, ValueError) as e:
-                # Image format not supported (e.g., HEIC without pillow-heif)
-                # This is expected for HEIC files without pillow-heif, so we'll try exifread
-                if not is_heic:
-                    raise
+            # Get EXIF data
+            exif_data = image.getexif()
+            if not exif_data:
                 return None, None
-            finally:
-                # Clean up temp file
-                if os.path.exists(tmp_file_path):
-                    os.unlink(tmp_file_path)
+            
+            # Find GPS info tag
+            gps_info = None
+            for tag_id, value in exif_data.items():
+                tag = TAGS.get(tag_id, tag_id)
+                if tag == 'GPSInfo':
+                    gps_info = value
+                    break
+            
+            if not gps_info:
+                return None, None
+            
+            # Extract GPS coordinates
+            gps_data = {}
+            for tag_id, value in gps_info.items():
+                tag = GPSTAGS.get(tag_id, tag_id)
+                gps_data[tag] = value
+            
+            # Get latitude and longitude
+            lat = gps_data.get('GPSLatitude')
+            lat_ref = gps_data.get('GPSLatitudeRef', 'N')
+            lon = gps_data.get('GPSLongitude')
+            lon_ref = gps_data.get('GPSLongitudeRef', 'E')
+            
+            if lat and lon:
+                # Convert from degrees, minutes, seconds to decimal
+                def dms_to_dd(dms, ref):
+                    degrees = float(dms[0])
+                    minutes = float(dms[1])
+                    seconds = float(dms[2])
+                    dd = degrees + minutes / 60.0 + seconds / 3600.0
+                    if ref in ['S', 'W']:
+                        dd = -dd
+                    return dd
+                
+                latitude = dms_to_dd(lat, lat_ref)
+                longitude = dms_to_dd(lon, lon_ref)
+                return latitude, longitude
                     
         except ImportError:
             # Pillow not available, try exifread
@@ -104,7 +87,7 @@ def extract_gps_from_image(image_file):
             import exifread
             # Reset file pointer
             image_file.seek(0)
-            tags = exifread.process_file(image_file, details=False)
+            tags = exifread.process_file(BytesIO(image_file.read()), details=False)
             
             if 'GPS GPSLatitude' in tags and 'GPS GPSLongitude' in tags:
                 lat = tags['GPS GPSLatitude']

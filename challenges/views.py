@@ -349,6 +349,7 @@ def review_reports(request):
         report = get_object_or_404(Report, id=report_id)
 
         if action == "dismiss":
+            HiddenChallenge.objects.filter(user=report.reporter, challenge=report.challenge).delete()
             report.delete()
         elif action == "remove":
             challenge = report.challenge
